@@ -54,6 +54,17 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
     {
     }
 
+
+    /// <summary>
+    /// Mutates the current search request context by overriding the ids with the results of the Meilisearch query.
+    /// This part code is somewhat copied or adapted from Jellysearch.
+    /// </summary>
+    /// <param name="context">The action context.</param>
+    /// <param name="searchTerm">The search term.</param>
+    /// <remarks>
+    /// If the search term is empty, or if there are no results, the method does nothing.
+    /// </remarks>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task Mutate(ActionExecutingContext context, string searchTerm)
     {
         var includeItemTypes = (BaseItemKind[]?)context.ActionArguments["includeItemTypes"] ?? [];
