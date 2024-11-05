@@ -1,0 +1,21 @@
+﻿namespace Jellyfin.Plugin.Meilisearch;
+
+public record MeilisearchItem(
+    string Guid,
+    string? Type,
+    string? ParentId,
+    string? Name,
+    string? Overview,
+    string? OriginalTitle,
+    string? SeriesName,
+    string? SortName,
+    int? ProductionYear,
+    string[]? Artists,
+    string[]? AlbumArtists,
+    string[]? Genres,
+    string[]? Studios,
+    string[]? Tags,
+    bool? IsFolder,
+    double? CommunityRating,
+    double? CriticRating
+);

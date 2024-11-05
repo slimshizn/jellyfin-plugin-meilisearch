@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Meilisearch</title>
+</head>
+<body>
+<div class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox"
+     data-role="page"
+     id="MeilisearchConfigPage">
+    <div data-role="content">
+        <div class="content-primary">
+            <h1 style="margin-right: 16px">Meilisearch Plugin</h1>
+            <div style="margin-bottom: 32px">
+                <h3>Status</h3>
+                <pre id="status"
+                     style="background: #fff1; padding: 16px; font-family: 'JetBrains Mono','JetBrainsMono NF',Consolas,monospace">unknown</pre>
+            </div>
+
+            <h3>Config</h3>
+            <form id="MeilisearchConfigForm">
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="Url">Meilisearch URL</label>
+                    <input id="Url" is="emby-input" min="0" name="Url" type="text"/>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="ApiKey">Meilisearch Api Key</label>
+                    <input id="ApiKey" is="emby-input" name="ApiKey" type="text"/>
+                </div>
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="Debug" is="emby-checkbox" name="Debug" type="checkbox"/>
+                        <span>Debug Output</span>
+                    </label>
+                </div>
+                <div>
+                    <button class="raised button-submit block emby-button" is="emby-button" type="submit">
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script type="text/javascript">
+        (() => {
+            const id = '974395db-b31d-46a2-bc86-ef9aa5ac04dd';
+
+            document.querySelector('#MeilisearchConfigPage')
+                .addEventListener('pageshow', function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(id).then(config => {
+                        document.querySelector('#Url').value = config.Url;
+                        document.querySelector('#ApiKey').value = config.ApiKey;
+                        document.querySelector('#Debug').checked = config.Debug;
+                        Dashboard.hideLoadingMsg();
+                    });
+                    ApiClient.get('/meilisearch/status').then(r => r.json()).then(status => {
+                        document.querySelector('#status').innerText = JSON.stringify(status, null, 2);
+                    })
+                });
+
+            document.querySelector('#MeilisearchConfigForm')
+                .addEventListener('submit', function (e) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(id).then(config => {
+                        config.Url = document.querySelector('#Url').value;
+                        config.ApiKey = document.querySelector('#ApiKey').value;
+                        config.Debug = document.querySelector('#Debug').checked;
+                        ApiClient.updatePluginConfiguration(id, config).then(result => {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+
+                    e.preventDefault();
+                    return false;
+                });
+        })()
+    </script>
+</div>
+</body>
+</html>
