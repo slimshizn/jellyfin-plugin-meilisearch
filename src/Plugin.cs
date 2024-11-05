@@ -41,7 +41,7 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
 
     public string DbPath { get; }
 
-    public override string Name => "Meilisearch Plugin";
+    public override string Name => "Meilisearch";
     public override Guid Id => Guid.Parse("974395db-b31d-46a2-bc86-ef9aa5ac04dd");
     public static Plugin? Instance { get; private set; }
 
@@ -74,9 +74,9 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
         ArgumentNullException.ThrowIfNull(configuration);
         var config = (Config)configuration;
 
-        if (Configuration.Url == config.Url && Configuration.ApiKey == config.ApiKey) return;
         Configuration = config;
         SaveConfiguration(Configuration);
+        if (Configuration.Url == config.Url && Configuration.ApiKey == config.ApiKey) return;
         ConfigurationChanged?.Invoke(this, configuration);
     }
 
