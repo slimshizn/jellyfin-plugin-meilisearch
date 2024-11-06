@@ -15,6 +15,14 @@
         "sourceUrl": "https://github.com/arnesacnussem/jellyfin-plugin-meilisearch/releases/download/v1.0.0.0/meilisearch-plugin_1.0.0.0.zip",
         "checksum": "6a4f57118529e808bba0f800a2891a31",
         "timestamp": "2024-11-06T00:09:28Z"
+      },
+      {
+        "version": "1.2.0.0",
+        "changelog": "fix searchTerm not in collection, allow set index name, and default to Instance name",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/arnesacnussem/jellyfin-plugin-meilisearch/releases/download/v1.2.0.0/meilisearch-plugin_1.2.0.0.zip",
+        "checksum": "59e0afe97d3d20e1fc2e33ffe3d4a734",
+        "timestamp": "2024-11-06T03:09:28Z"
       }
     ]
   }
