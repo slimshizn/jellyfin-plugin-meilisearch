@@ -61,7 +61,7 @@ public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger)
 
     private static async Task<Index> GetIndex(MeilisearchClient meilisearch)
     {
-        var index = meilisearch.Index("items");
+        var index = meilisearch.Index(Plugin.IndexName);
         // Set filterable attributes
         await index.UpdateFilterableAttributesAsync(
             ["type", "parentId", "isFolder"]

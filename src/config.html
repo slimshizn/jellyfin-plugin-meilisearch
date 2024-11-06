@@ -29,6 +29,11 @@
                     <label class="inputLabel inputLabelUnfocused" for="ApiKey">Meilisearch Api Key</label>
                     <input id="ApiKey" is="emby-input" name="ApiKey" type="text"/>
                 </div>
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="IndexName">Meilisearch Index Name</label>
+                    <input id="IndexName" is="emby-input" name="IndexName" type="text"/>
+                    <div class="fieldDescription">Default to server friendly name.</div>
+                </div>
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label class="emby-checkbox-label">
                         <input id="Debug" is="emby-checkbox" name="Debug" type="checkbox"/>
@@ -54,6 +59,7 @@
                         document.querySelector('#Url').value = config.Url;
                         document.querySelector('#ApiKey').value = config.ApiKey;
                         document.querySelector('#Debug').checked = config.Debug;
+                        document.querySelector('#IndexName').checked = config.IndexName;
                         Dashboard.hideLoadingMsg();
                     });
                     ApiClient.get('/meilisearch/status').then(r => r.json()).then(status => {
@@ -68,6 +74,7 @@
                         config.Url = document.querySelector('#Url').value;
                         config.ApiKey = document.querySelector('#ApiKey').value;
                         config.Debug = document.querySelector('#Debug').checked;
+                        config.IndexName = document.querySelector('#IndexName').checked;
                         ApiClient.updatePluginConfiguration(id, config).then(result => {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });

@@ -7,6 +7,7 @@ using MediaBrowser.Model.Serialization;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Jellyfin.Plugin.Meilisearch;
 
@@ -84,5 +85,14 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
     {
         await _clientHolder.Set(Configuration);
         await Indexer.Index();
+    }
+
+    public static string IndexName
+    {
+        get
+        {
+            var cfg = Instance?.Configuration.IndexName;
+            return (cfg.IsNullOrEmpty() ? PluginRegister.ServerName : cfg)!;
+        }
     }
 }
