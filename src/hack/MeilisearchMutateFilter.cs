@@ -43,7 +43,8 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         logger.LogDebug("path={path} query={query}", path, context.HttpContext.Request.QueryString);
 
         if (!MatchingPaths.Contains(context.HttpContext.Request.Path)) return;
-        var searchTerm = (string?)context.ActionArguments["searchTerm"];
+        if (!context.ActionArguments.TryGetValue("searchTerm", out var searchTermObj)) return;
+        var searchTerm = (string?)searchTermObj;
         if (searchTerm is not { Length: > 0 }) return;
 
         logger.LogDebug("path={path} searchTerm={searchTerm}", path, searchTerm);
