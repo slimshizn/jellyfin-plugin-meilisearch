@@ -30,13 +30,12 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
         logger.LogInformation("db_path={DB}", DbPath);
         Instance = this;
 
-        TryCreateMeilisearchClient();
         ConfigurationChanged += (_, _) =>
         {
             logger.LogInformation("Configuration changed");
-            TryCreateMeilisearchClient();
+            TryCreateMeilisearchClient().Wait();
         };
-
+        TryCreateMeilisearchClient().Wait();
         TryAddFilter(provider, serviceProvider);
     }
 
@@ -60,7 +59,7 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
         ];
     }
 
-    private void TryAddFilter(IActionDescriptorCollectionProvider provider, IServiceProvider serviceProvider)
+    private static void TryAddFilter(IActionDescriptorCollectionProvider provider, IServiceProvider serviceProvider)
     {
         provider.AddDynamicFilter<MeilisearchMutateFilter>(serviceProvider, delegate(ControllerActionDescriptor t)
         {
@@ -74,25 +73,17 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
     {
         ArgumentNullException.ThrowIfNull(configuration);
         var config = (Config)configuration;
+        var needReload = Configuration.Url == config.Url && Configuration.ApiKey == config.ApiKey;
 
         Configuration = config;
         SaveConfiguration(Configuration);
-        if (Configuration.Url == config.Url && Configuration.ApiKey == config.ApiKey) return;
-        ConfigurationChanged?.Invoke(this, configuration);
+        if (needReload)
+            ConfigurationChanged?.Invoke(this, configuration);
     }
 
-    private async void TryCreateMeilisearchClient()
+    private async Task TryCreateMeilisearchClient()
     {
         await _clientHolder.Set(Configuration);
         await Indexer.Index();
-    }
-
-    public static string IndexName
-    {
-        get
-        {
-            var cfg = Instance?.Configuration.IndexName;
-            return (cfg.IsNullOrEmpty() ? PluginRegister.ServerName : cfg)!;
-        }
     }
 }

@@ -59,7 +59,7 @@
                         document.querySelector('#Url').value = config.Url;
                         document.querySelector('#ApiKey').value = config.ApiKey;
                         document.querySelector('#Debug').checked = config.Debug;
-                        document.querySelector('#IndexName').checked = config.IndexName;
+                        document.querySelector('#IndexName').value = config.IndexName;
                         Dashboard.hideLoadingMsg();
                     });
                     ApiClient.get('/meilisearch/status').then(r => r.json()).then(status => {
@@ -74,7 +74,7 @@
                         config.Url = document.querySelector('#Url').value;
                         config.ApiKey = document.querySelector('#ApiKey').value;
                         config.Debug = document.querySelector('#Debug').checked;
-                        config.IndexName = document.querySelector('#IndexName').checked;
+                        config.IndexName = document.querySelector('#IndexName').value;
                         ApiClient.updatePluginConfiguration(id, config).then(result => {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });

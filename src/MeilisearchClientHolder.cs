@@ -1,11 +1,12 @@
-﻿using Meilisearch;
+﻿using MediaBrowser.Controller;
+using Meilisearch;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Index = Meilisearch.Index;
 
 namespace Jellyfin.Plugin.Meilisearch;
 
-public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger)
+public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger, IServerApplicationHost applicationHost)
 {
     public string Status { get; private set; } = "Not Configured";
     public bool Ok => Client != null && Index != null;
@@ -59,9 +60,12 @@ public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger)
             Status = $"Error: {task.Exception?.Message}" ?? "Unknown error";
     }
 
-    private static async Task<Index> GetIndex(MeilisearchClient meilisearch)
+    private async Task<Index> GetIndex(MeilisearchClient meilisearch)
     {
-        var index = meilisearch.Index(Plugin.IndexName);
+        var configName = Plugin.Instance?.Configuration.IndexName;
+        var sanitizedConfigName = applicationHost.FriendlyName.Replace(" ", "-");
+        var index = meilisearch.Index(configName.IsNullOrEmpty() ? sanitizedConfigName : configName);
+
         // Set filterable attributes
         await index.UpdateFilterableAttributesAsync(
             ["type", "parentId", "isFolder"]
