@@ -37,6 +37,7 @@ public class DbIndexer(MeilisearchClientHolder clientHolder, ILogger<DbIndexer> 
     // ];
 
     public override DateTimeOffset? LastIndex { get; protected set; }
+    public override long LastIndexCount { get; protected set; }
 
 
     protected override async Task IndexInternal(MeilisearchClient meilisearch, Index index)
@@ -55,7 +56,7 @@ public class DbIndexer(MeilisearchClientHolder clientHolder, ILogger<DbIndexer> 
         // Query all base items
         await using var command = connection.CreateCommand();
         command.CommandText =
-            "SELECT guid, type, ParentId, CommunityRating, Name, Overview, ProductionYear, Genres, Studios, Tags, IsFolder, CriticRating, OriginalTitle, SeriesName, Artists, AlbumArtists FROM TypedBaseItems";
+            "SELECT guid, type, ParentId, CommunityRating, Name, Overview, ProductionYear, Genres, Studios, Tags, IsFolder, CriticRating, OriginalTitle, SeriesName, Artists, AlbumArtists, Path FROM TypedBaseItems";
 
         await using var reader = await command.ExecuteReaderAsync();
         var items = new List<MeilisearchItem>();
@@ -77,8 +78,10 @@ public class DbIndexer(MeilisearchClientHolder clientHolder, ILogger<DbIndexer> 
                 OriginalTitle: !reader.IsDBNull(12) ? reader.GetString(12) : null,
                 SeriesName: !reader.IsDBNull(13) ? reader.GetString(13) : null,
                 Artists: !reader.IsDBNull(14) ? reader.GetString(14).Split('|') : null,
-                AlbumArtists: !reader.IsDBNull(15) ? reader.GetString(15).Split('|') : null
+                AlbumArtists: !reader.IsDBNull(15) ? reader.GetString(15).Split('|') : null,
+                Path: !reader.IsDBNull(16) ? reader.GetString(16) : null
             );
+            if (item.Path?[0] == '%') item = item with { Path = null };
             items.Add(item);
         }
 
@@ -91,5 +94,6 @@ public class DbIndexer(MeilisearchClientHolder clientHolder, ILogger<DbIndexer> 
         await index.AddDocumentsInBatchesAsync(items, 5000, "guid");
         logger.LogInformation("Upload {COUNT} items to Meilisearch", items.Count);
         LastIndex = DateTimeOffset.Now;
+        LastIndexCount = items.Count;
     }
 }

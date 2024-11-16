@@ -7,6 +7,7 @@ namespace Jellyfin.Plugin.Meilisearch;
 public abstract class Indexer(MeilisearchClientHolder clientHolder, ILogger<Indexer> logger)
 {
     public abstract DateTimeOffset? LastIndex { get; protected set; }
+    public abstract long LastIndexCount { get; protected set; }
 
     public async Task Index()
     {

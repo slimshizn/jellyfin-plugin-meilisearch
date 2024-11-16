@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using Jellyfin.Data.Enums;
 using Meilisearch;
@@ -10,7 +11,7 @@ namespace Jellyfin.Plugin.Meilisearch;
 
 // ReSharper disable once ClassNeverInstantiated.Global
 public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<MeilisearchMutateFilter> logger)
-    : IActionFilter
+    : IAsyncActionFilter
 {
     private static readonly Dictionary<string, string> JellyfinTypeMap = new()
     {
@@ -35,24 +36,33 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
     private static readonly Collection<string> MatchingPaths = ["/Items"];
     // ["/Users/{userId}/Items", "/Persons", "/Artists/AlbumArtists", "/Artists", "/Genres"];
 
-    public void OnActionExecuting(ActionExecutingContext context)
+    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var path = context.HttpContext.Request.Path.ToString();
         logger.LogDebug("path={path} query={query}", path, context.HttpContext.Request.QueryString);
 
-        if (!MatchingPaths.Contains(context.HttpContext.Request.Path)) return;
-        if (!context.ActionArguments.TryGetValue("searchTerm", out var searchTermObj)) return;
-        var searchTerm = (string?)searchTermObj;
-        if (searchTerm is not { Length: > 0 }) return;
-
-        logger.LogDebug("path={path} searchTerm={searchTerm}", path, searchTerm);
-        Mutate(context, searchTerm).Wait();
+        var searchTerm = GetSearchTerm(context);
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            logger.LogDebug("path={path} searchTerm={searchTerm}", path, searchTerm);
+            var stopwatch = Stopwatch.StartNew();
+            await Mutate(context, searchTerm);
+            stopwatch.Stop();
+            Plugin.Instance?.UpdateAverageSearchTime(stopwatch.ElapsedMilliseconds);
+        }
+        await next();
     }
 
-    public void OnActionExecuted(ActionExecutedContext context)
+    private string? GetSearchTerm(ActionExecutingContext context)
     {
-    }
+        var path = context.HttpContext.Request.Path.ToString();
+        logger.LogDebug("path={path} query={query}", path, context.HttpContext.Request.QueryString);
 
+        if (!MatchingPaths.Contains(context.HttpContext.Request.Path)) return null;
+        if (!context.ActionArguments.TryGetValue("searchTerm", out var searchTermObj)) return null;
+        var searchTerm = (string?)searchTermObj;
+        return searchTerm is not { Length: > 0 } ? null : searchTerm;
+    }
 
     /// <summary>
     ///     Mutates the current search request context by overriding the ids with the results of the Meilisearch query.

@@ -13,6 +13,7 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
 {
     private readonly MeilisearchClientHolder _clientHolder;
     public readonly Indexer Indexer;
+    public long AverageSearchTime;
 
     public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, ILogger<Plugin> logger,
         IServiceProvider serviceProvider,
@@ -86,5 +87,14 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
     {
         await _clientHolder.Set(Configuration);
         await Indexer.Index();
+    }
+
+    public void UpdateAverageSearchTime(long averageSearchTime)
+    {
+        lock (this)
+        {
+            if (AverageSearchTime == 0) AverageSearchTime = averageSearchTime;
+            AverageSearchTime = (averageSearchTime + AverageSearchTime) / 2;
+        }
     }
 }
