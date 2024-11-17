@@ -63,31 +63,21 @@ public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger, IS
         var sanitizedConfigName = applicationHost.FriendlyName.Replace(" ", "-");
         var index = meilisearch.Index(configName.IsNullOrEmpty() ? sanitizedConfigName : configName);
 
-        // Set filterable attributes
         await index.UpdateFilterableAttributesAsync(
             ["type", "parentId", "isFolder"]
         );
 
-        // Set sortable attributes
         await index.UpdateSortableAttributesAsync(
             ["communityRating", "criticRating"]
         );
 
-        // Change priority of fields; Meilisearch always uses camel case!
-        await index.UpdateSearchableAttributesAsync(
-            [
-                "name", "artists", "albumArtists", "originalTitle", "productionYear", "seriesName", "genres", "tags",
-                "studios", "overview"
-            ]
-        );
-
-        // We only need the GUID to pass to Jellyfin
-        await index.UpdateDisplayedAttributesAsync(
-            [
-                "guid", "name", "albumArtists", "originalTitle", "productionYear", "seriesName", "genres", "tags",
-                "studios", "overview"
-            ]
-        );
+        List<string> searchableAttributes =
+        [
+            "name", "artists", "albumArtists", "originalTitle", "productionYear", "seriesName", "genres", "tags",
+            "studios", "overview", "path"
+        ];
+        await index.UpdateSearchableAttributesAsync(searchableAttributes);
+        await index.UpdateDisplayedAttributesAsync(searchableAttributes);
 
         // Set ranking rules to add critic rating
         await index.UpdateRankingRulesAsync(
