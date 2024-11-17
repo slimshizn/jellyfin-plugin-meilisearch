@@ -17,11 +17,22 @@ This plugin is inspired by [Jellysearch](https://gitlab.com/DomiStyle/jellysearc
 5. Try typing something in search page
 ---
 
+### How it works
+
+The core feature, which is to mutate the search request, is done by injecting an [`ActionFilter`](https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/filters?view=aspnetcore-8.0#action-filters) with reflection.
+So it may only support a few versions of Jellyfin. At the moment I'm using `Jellyfin 10.10.0`,
+but it should work on other versions as long as the required parameter name of `/Items` doesn't change.
+
+The index will update on following events:
+- Server start
+- Configuration change
+- Library scan complete
+
+---
+### umm...
+
 Because I don't really like setting up a reverse proxy or any of that hassle,
 so I am writing this, but it still requires a Meilisearch instance.
 
 At the moment it only works in the search page and only for the `/Items` endpoint, but it still improves a lot.
 
-The core feature, which is to proxy the search request, is done by injecting an [`ActionFilter`](https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/filters?view=aspnetcore-8.0#action-filters) with reflection. 
-So it may only support a few versions of Jellyfin. At the moment I'm using `Jellyfin 10.10.0`, 
-but it should work on other versions as long as the required parameter name of `/Items` doesn't change.
