@@ -71,13 +71,13 @@ public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger, IS
             ["communityRating", "criticRating"]
         );
 
-        List<string> searchableAttributes =
+        string[] searchableAttributes =
         [
             "name", "artists", "albumArtists", "originalTitle", "productionYear", "seriesName", "genres", "tags",
             "studios", "overview", "path"
         ];
         await index.UpdateSearchableAttributesAsync(searchableAttributes);
-        await index.UpdateDisplayedAttributesAsync(searchableAttributes);
+        await index.UpdateDisplayedAttributesAsync(searchableAttributes.Concat(["guid"]));
 
         // Set ranking rules to add critic rating
         await index.UpdateRankingRulesAsync(
