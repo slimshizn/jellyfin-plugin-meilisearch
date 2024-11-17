@@ -46,17 +46,91 @@
                         <input id="Debug" is="emby-checkbox" name="Debug" type="checkbox"/>
                         <span>Debug Output</span>
                     </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        This option can't change log level, it only enables some certain log outputs.
+                    </div>
+                </div>
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input id="Fallback" is="emby-checkbox" name="Fallback" type="checkbox"/>
+                        <span>Fallback to Jellyfin</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Fallback to Jellyfin native search if Meilisearch returns nothing.
+                        <br>This only take effect when Meilisearch is properly configured, otherwise it will always
+                        fallback to Jellyfin native method.
+                    </div>
                 </div>
                 <div>
-                    <button class="raised button-submit block emby-button" is="emby-button" type="submit">
-                        <span>Save</span>
-                    </button>
+                    <span>Search by following fields</span>
+                    <div id="checkbox-list"></div>
+                    <div>
+                        <button class="raised button-submit block emby-button" is="emby-button" type="submit">
+                            <span>Save</span>
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
     <script type="text/javascript">
         (() => {
+            const allSearchableFields = [
+                "name", "artists", "albumArtists",
+                "originalTitle", "productionYear",
+                "seriesName", "genres", "tags",
+                "studios", "overview", "path"
+            ]
+            const generateCheckboxList = (checked) => {
+                const checkboxList = document.getElementById("checkbox-list");
+                allSearchableFields.forEach(item => {
+                    const label = document.createElement("label");
+                    label.classList.add("emby-checkbox-label");
+
+                    const input = document.createElement("input");
+                    input.type = "checkbox";
+                    input.id = "chk-search-" + item;
+                    input.setAttribute("data-embycheckbox", "true");
+                    input.classList.add("emby-checkbox");
+                    input.checked = checked.includes(item);
+
+                    const spanLabel = document.createElement("span");
+                    spanLabel.classList.add("checkboxLabel");
+                    spanLabel.textContent = item;
+
+                    const spanOutline = document.createElement("span");
+                    spanOutline.classList.add("checkboxOutline");
+
+                    const iconChecked = document.createElement("span");
+                    iconChecked.classList.add("material-icons", "checkboxIcon", "checkboxIcon-checked", "check");
+                    iconChecked.setAttribute("aria-hidden", "true");
+
+                    const iconUnchecked = document.createElement("span");
+                    iconUnchecked.classList.add("material-icons", "checkboxIcon", "checkboxIcon-unchecked");
+                    iconUnchecked.setAttribute("aria-hidden", "true");
+
+                    spanOutline.appendChild(iconChecked);
+                    spanOutline.appendChild(iconUnchecked);
+
+                    label.appendChild(input);
+                    label.appendChild(spanLabel);
+                    label.appendChild(spanOutline);
+
+                    checkboxList.appendChild(label);
+                })
+            }
+
+            const getSelectedSearchableFields = () => {
+                const fields = [];
+                allSearchableFields.forEach(item => {
+                    const input = document.getElementById("chk-search-" + item);
+                    if (input.checked) {
+                        fields.push(item);
+                    }
+                })
+                return fields;
+            }
+
             const id = '974395db-b31d-46a2-bc86-ef9aa5ac04dd';
             const updateStatus = () => {
                 ApiClient.get('/meilisearch/status').then(r => r.json()).then(status => {
@@ -75,6 +149,8 @@
                         document.querySelector('#ApiKey').value = config.ApiKey;
                         document.querySelector('#Debug').checked = config.Debug;
                         document.querySelector('#IndexName').value = config.IndexName;
+                        document.querySelector('#Fallback').checked = config.FallbackToJellyfin;
+                        generateCheckboxList(config.AttributesToSearchOn)
                         Dashboard.hideLoadingMsg();
                     });
                     updateStatus()
@@ -88,6 +164,8 @@
                         config.ApiKey = document.querySelector('#ApiKey').value;
                         config.Debug = document.querySelector('#Debug').checked;
                         config.IndexName = document.querySelector('#IndexName').value;
+                        config.AttributesToSearchOn = getSelectedSearchableFields();
+                        config.FallbackToJellyfin = document.querySelector('#Fallback').checked;
                         ApiClient.updatePluginConfiguration(id, config).then(result => {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });

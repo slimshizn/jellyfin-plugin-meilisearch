@@ -5,7 +5,9 @@ using Jellyfin.Data.Enums;
 using Meilisearch;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
+using Index = Meilisearch.Index;
 
 namespace Jellyfin.Plugin.Meilisearch;
 
@@ -46,10 +48,13 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         {
             logger.LogDebug("path={path} searchTerm={searchTerm}", path, searchTerm);
             var stopwatch = Stopwatch.StartNew();
-            await Mutate(context, searchTerm);
+            var count = await Mutate(context, searchTerm);
             stopwatch.Stop();
             Plugin.Instance?.UpdateAverageSearchTime(stopwatch.ElapsedMilliseconds);
+            context.HttpContext.Response.Headers.Add(new KeyValuePair<string, StringValues>(
+                "x-meilisearch-result", $"{stopwatch.ElapsedMilliseconds}ms, {count} items"));
         }
+
         await next();
     }
 
@@ -64,6 +69,22 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         return searchTerm is not { Length: > 0 } ? null : searchTerm;
     }
 
+    private static async Task<IReadOnlyCollection<MeilisearchItem>> Search(Index index, string searchTerm,
+        IEnumerable<KeyValuePair<string, string>> filters, int limit = 20)
+    {
+        var filterQuery = filters.Select(it => $"{it.Key} = {it.Value}");
+        var results = await index.SearchAsync<MeilisearchItem>(
+            searchTerm,
+            new SearchQuery
+            {
+                Filter = string.Join(" AND ", filterQuery),
+                Limit = limit,
+                AttributesToSearchOn = Plugin.Instance?.Configuration.AttributesToSearchOn
+            }
+        );
+        return results.Hits;
+    }
+
     /// <summary>
     ///     Mutates the current search request context by overriding the ids with the results of the Meilisearch query.
     ///     This part code is somewhat copied or adapted from Jellysearch.
@@ -74,12 +95,15 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
     ///     If the search term is empty, or if there are no results, the method does nothing.
     /// </remarks>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task Mutate(ActionExecutingContext context, string searchTerm)
+    private async Task<int> Mutate(ActionExecutingContext context, string searchTerm)
     {
+        if (ch.Index == null)
+            return 0;
+
         var includeItemTypes = (BaseItemKind[]?)context.ActionArguments["includeItemTypes"] ?? [];
 
         var filteredTypes = new List<string>();
-        var additionalFilters = new List<string>();
+        var additionalFilters = new List<KeyValuePair<string, string>>();
         if (!includeItemTypes.IsNullOrEmpty())
         {
             // Get item type(s) from URL
@@ -100,8 +124,9 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
             }
             else if (path.EndsWith("/AlbumArtists", true, CultureInfo.InvariantCulture))
             {
+                // Album artists are marked as folder
                 filteredTypes.Add("MediaBrowser.Controller.Entities.Audio.MusicArtist");
-                additionalFilters.Add("isFolder = 1"); // Album artists are marked as folder
+                additionalFilters.Add(new KeyValuePair<string, string>("isFolder", "true"));
             }
             else if (path.EndsWith("/Genres", true, CultureInfo.InvariantCulture))
             {
@@ -111,42 +136,15 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
 
         // Override the limit if it is less than 20 from request
         var limit = (int?)context.ActionArguments["limit"] ?? 20;
-        var items = new List<MeilisearchItem>();
-        if (ch.Index == null)
-            return;
-        if (filteredTypes.Count == 0)
-        {
-            // Search without filtering the type
-            var results = await ch.Index.SearchAsync<MeilisearchItem>(searchTerm, new SearchQuery
-            {
-                Limit = limit
-            });
+        var filter = filteredTypes
+            .Select(it => new KeyValuePair<string, string>("type", it))
+            .Concat(additionalFilters);
+        var items = await Search(ch.Index, searchTerm, filter, limit);
 
-            items.AddRange(results.Hits);
-        }
-        else
+        var notFallback = !(Plugin.Instance?.Configuration.FallbackToJellyfin ?? false);
+        if (items.Count > 0 || notFallback)
         {
-            var additionFilter = additionalFilters.Count > 0 ? " AND " + string.Join(" AND ", additionalFilters) : "";
-            // Loop through each requested type and search
-            foreach (var filter in filteredTypes.Select(f => $"type = {f}{additionFilter}"))
-            {
-                var results = await ch.Index.SearchAsync<MeilisearchItem>(searchTerm, new SearchQuery
-                {
-                    Filter = filter,
-                    Limit = limit
-                });
-
-                items.AddRange(results.Hits);
-            }
-        }
-
-        if (items.Count == 0)
-        {
-            logger.LogDebug("No hints, not mutate request");
-        }
-        else
-        {
-            logger.LogInformation("Mutating search request with {hits} results", items.Count);
+            logger.LogDebug("Mutating search request with {hits} results", items.Count);
             // Get all query arguments to pass along to Jellyfin
             // Remove searchterm since we already searched
             // Remove sortby and sortorder since we want to display results as Meilisearch returns them
@@ -154,8 +152,17 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
             context.ActionArguments["searchTerm"] = null;
             context.ActionArguments["sortBy"] = (ItemSortBy[]) [];
             context.ActionArguments["sortOrder"] = (SortOrder[]) [];
-            context.ActionArguments["limit"] = limit < 20 ? 20 : limit;
             context.ActionArguments["ids"] = items.Select(x => Guid.Parse(x.Guid)).ToArray();
+            if (items.Count == 0)
+                context.ActionArguments["limit"] = 0;
+            else
+                context.ActionArguments["limit"] = limit < 20 ? 20 : limit;
         }
+        else
+        {
+            logger.LogDebug("Not mutate request: results={hits}, fallback={fallback}", items.Count, !notFallback);
+        }
+
+        return items.Count;
     }
 }

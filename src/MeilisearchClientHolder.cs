@@ -71,13 +71,8 @@ public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger, IS
             ["communityRating", "criticRating"]
         );
 
-        string[] searchableAttributes =
-        [
-            "name", "artists", "albumArtists", "originalTitle", "productionYear", "seriesName", "genres", "tags",
-            "studios", "overview", "path"
-        ];
-        await index.UpdateSearchableAttributesAsync(searchableAttributes);
-        await index.UpdateDisplayedAttributesAsync(searchableAttributes.Concat(["guid"]));
+        await index.UpdateSearchableAttributesAsync(Config.DefaultAttributesToSearchOn);
+        await index.UpdateDisplayedAttributesAsync(Config.DefaultAttributesToSearchOn.Concat(["guid"]));
 
         // Set ranking rules to add critic rating
         await index.UpdateRankingRulesAsync(
