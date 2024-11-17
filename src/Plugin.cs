@@ -4,6 +4,7 @@ using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Meilisearch;
@@ -12,15 +13,24 @@ namespace Jellyfin.Plugin.Meilisearch;
 public class Plugin : BasePlugin<Config>, IHasWebPages
 {
     private readonly MeilisearchClientHolder _clientHolder;
+    private readonly ILogger<Plugin> _logger;
     public readonly Indexer Indexer;
     public long AverageSearchTime;
 
-    public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, ILogger<Plugin> logger,
+    public Plugin(
+        IApplicationPaths applicationPaths,
+        IXmlSerializer xmlSerializer,
+        ILogger<Plugin> logger,
         IServiceProvider serviceProvider,
-        MeilisearchClientHolder clientHolder, Indexer indexer, IActionDescriptorCollectionProvider provider) : base(
+        MeilisearchClientHolder clientHolder,
+        Indexer indexer,
+        IActionDescriptorCollectionProvider provider,
+        IHostApplicationLifetime hostApplicationLifetime
+    ) : base(
         applicationPaths,
         xmlSerializer)
     {
+        _logger = logger;
         _clientHolder = clientHolder;
         Indexer = indexer;
 
@@ -33,8 +43,9 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
             logger.LogInformation("Configuration changed, reloading meilisearch...");
             TryCreateMeilisearchClient().Wait();
         };
-        TryCreateMeilisearchClient().Wait();
-        TryAddFilter(provider, serviceProvider);
+
+        hostApplicationLifetime.ApplicationStarted.Register(() => { _ = TryCreateMeilisearchClient(); });
+        hostApplicationLifetime.ApplicationStarted.Register(() => { TryAddFilter(provider, serviceProvider); });
     }
 
     private EventHandler<BasePluginConfiguration> ReloadMeilisearch { get; }
@@ -61,13 +72,15 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
 
     private void TryAddFilter(IActionDescriptorCollectionProvider provider, IServiceProvider serviceProvider)
     {
-        provider.AddDynamicFilter<MeilisearchMutateFilter>(serviceProvider, t =>
+        // I guess this would work purely because this is a plugin and is loaded after ItemsController
+        var count = provider.AddDynamicFilter<MeilisearchMutateFilter>(serviceProvider, t =>
         {
             var sig = $"{t.ControllerTypeInfo.FullName}#{t.MethodInfo.Name}";
             if (Configuration.Debug) Console.WriteLine($"\tmethod: {sig}");
 
             return sig == "Jellyfin.Api.Controllers.ItemsController#GetItems";
         });
+        _logger.LogInformation("Added {Count} action filters", count);
     }
 
     public override void UpdateConfiguration(BasePluginConfiguration configuration)

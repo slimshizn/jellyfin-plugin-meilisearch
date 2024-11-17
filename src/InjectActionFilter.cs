@@ -7,7 +7,7 @@ namespace Jellyfin.Plugin.Meilisearch;
 
 public static class InjectActionFilter
 {
-    public static void AddDynamicFilter<T>(
+    public static int AddDynamicFilter<T>(
         this IActionDescriptorCollectionProvider provider,
         IServiceProvider serviceProvider,
         Func<ControllerActionDescriptor, bool> matcher)
@@ -21,7 +21,7 @@ public static class InjectActionFilter
         {
             var cad = ad as ControllerActionDescriptor;
             return cad != null && matcher(cad);
-        });
+        }).ToArray();
 
         // Add the filter to each action on the specified controller
         foreach (var action in targetActions)
@@ -31,5 +31,7 @@ public static class InjectActionFilter
             var filterMetadata = action.FilterDescriptors;
             filterMetadata.Add(new FilterDescriptor(filter, FilterScope.Global));
         }
+
+        return targetActions.Length;
     }
 }
