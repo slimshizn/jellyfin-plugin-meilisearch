@@ -108,7 +108,7 @@ jobs:
           echo "download url: ${DOWNLOAD_URL}"
           
           echo "::group::Updating manifest.json"
-          jprm repo add ./manifest.json "$(ls -d *.zip)" -u "${DOWNLOAD_URL}"
+          jprm repo add ./manifest.json "$(ls -d *.zip)" -u "${DOWNLOAD_URL}" -U "${RELEASE_TAG}"
           echo "::endgroup::"
 
       - name: Commit file
