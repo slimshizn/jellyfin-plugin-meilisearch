@@ -9,11 +9,11 @@
     "imageUrl": "https://raw.githubusercontent.com/meilisearch/meilisearch/refs/heads/main/assets/meilisearch-logo-dark.svg",
     "versions": [
       {
-        "version": "1.8.0.0",
+        "version": "1.8.1.0",
         "changelog": "add Path to search field, I think it will be useful, and there should be a config for fields to index maybe.",
         "targetAbi": "10.9.0.0",
-        "sourceUrl": "https://github.com/arnesacnussem/jellyfin-plugin-meilisearch/releases/download/v1.8.0.0/meilisearch_1.8.0.0.zip",
-        "checksum": "c0280a16723ad933c8b9314862715139",
+        "sourceUrl": "https://github.com/arnesacnussem/jellyfin-plugin-meilisearch/releases/download/v1.8.1.0/meilisearch_1.8.1.0.zip",
+        "checksum": "0f53dd2e2cb6912e66722f78cbf3a73d",
         "timestamp": "2024-11-17T03:10:28Z"
       },
       {
