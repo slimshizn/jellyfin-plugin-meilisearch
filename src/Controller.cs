@@ -9,8 +9,6 @@ public class Controller(MeilisearchClientHolder clientHolder) : ControllerBase
     [HttpGet("status")]
     public Task<IActionResult> GetStatus()
     {
-        if (!clientHolder.Ok) Plugin.Instance?.TryCreateMeilisearchClient().Wait();
-
         return Task.FromResult<IActionResult>(new JsonResult(new
         {
             db = Plugin.Instance?.DbPath,
@@ -20,5 +18,12 @@ public class Controller(MeilisearchClientHolder clientHolder) : ControllerBase
             lastIndexed = Plugin.Instance?.Indexer.LastIndexCount,
             averageSearchTime = $"{Plugin.Instance?.AverageSearchTime}ms"
         }));
+    }
+    
+    [HttpGet("reconnect")]
+    public Task<IActionResult> Reconnect()
+    {
+        if (!clientHolder.Ok) Plugin.Instance?.TryCreateMeilisearchClient().Wait();
+        return GetStatus();
     }
 }

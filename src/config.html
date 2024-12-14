@@ -16,14 +16,20 @@
             <div style="margin-bottom: 32px">
                 <div style="display: inline-flex; align-items: center;justify-content: center">
                     <span style="font-size: 24px">Status</span>
-                    <button class="emby-input-iconbutton paper-icon-button-light" id="meilisearch-refresh-status-button"
-                            is="paper-icon-button-light" title="refresh"
-                            type="button">
-                        <span aria-hidden="true" class="material-icons refresh"></span>
+                    <button is="emby-button" type="button" id="meilisearch-refresh-status-button"
+                            class="raised button-submit block formDialogFooterItem emby-button"
+                            style="margin: 0; padding: 4px 4px">
+                        <span>refresh</span>
+                    </button>
+                    <button is="emby-button" type="button" id="meilisearch-reconnect-button"
+                            class="raised button-submit block formDialogFooterItem emby-button"
+                            style="margin: 0; padding: 4px 4px; display: none"
+                    >
+                        <span>reconnect</span>
                     </button>
                 </div>
                 <pre id="status"
-                     style="background: #fff1; margin-top: 0; padding: 16px; font-family: 'JetBrains Mono','JetBrainsMono NF',Consolas,monospace">unknown</pre>
+                     style="background: #fff1; margin-top: 0; padding: 16px; font-family: 'JetBrains Mono','JetBrainsMono NF',Consolas,monospace">(this is a placeholder)</pre>
             </div>
 
             <span style="font-size: 24px">Config</span>
@@ -132,14 +138,35 @@
             }
 
             const id = '974395db-b31d-46a2-bc86-ef9aa5ac04dd';
-            const updateStatus = () => {
-                ApiClient.get('/meilisearch/status').then(r => r.json()).then(status => {
-                    document.querySelector('#status').innerText = Object.keys(status).map(k => k + ': ' + status[k]).join('\n');
+            const statusEl = document.querySelector('#status')
+            const btn = document.querySelector('#meilisearch-refresh-status-button')
+            const reconnectBtn = document.querySelector('#meilisearch-reconnect-button')
+            const clsNameEnabled = 'raised button-submit block formDialogFooterItem emby-button';
+            const clsNameDisabled = 'block formDialogFooterItem emby-button';
+            const updateStatus = (endpoint) => {
+                btn.setAttribute('disabled', 'disabled');
+                reconnectBtn.setAttribute('disabled', 'disabled');
+                btn.className = clsNameDisabled;
+                reconnectBtn.className = clsNameDisabled;
+                statusEl.innerText = 'loading status...';
+                ApiClient.get('/meilisearch/' + endpoint).then(r => r.json()).then(status => {
+                    statusEl.innerText = Object.keys(status).map(k => k + ': ' + status[k]).join('\n');
+                    if (status.meilisearchOk) {
+                        reconnectBtn.style.display = 'none';
+                    } else {
+                        reconnectBtn.style.display = 'block';
+                    }
+                }).catch(() => {
+                    statusEl.innerText = 'error fetching status';
+                }).finally(() => {
+                    btn.removeAttribute('disabled');
+                    reconnectBtn.removeAttribute('disabled');
+                    btn.className = clsNameEnabled;
+                    reconnectBtn.className = clsNameEnabled;
                 })
             }
-
-            document.querySelector('#meilisearch-refresh-status-button')
-                .addEventListener('click', updateStatus);
+            btn.addEventListener('click', () => updateStatus('status'));
+            reconnectBtn.addEventListener('click', () => updateStatus('reconnect'));
 
             document.querySelector('#MeilisearchConfigPage')
                 .addEventListener('pageshow', function () {
@@ -153,7 +180,7 @@
                         generateCheckboxList(config.AttributesToSearchOn)
                         Dashboard.hideLoadingMsg();
                     });
-                    updateStatus()
+                    updateStatus('status');
                 });
 
             document.querySelector('#MeilisearchConfigForm')
