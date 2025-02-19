@@ -2,7 +2,11 @@
 using System.Diagnostics;
 using System.Globalization;
 using Jellyfin.Data.Enums;
+using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Querying;
 using Meilisearch;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
@@ -48,11 +52,18 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         {
             logger.LogDebug("path={path} searchTerm={searchTerm}", path, searchTerm);
             var stopwatch = Stopwatch.StartNew();
-            var count = await Mutate(context, searchTerm);
+            var result = await Mutate(context, searchTerm);
             stopwatch.Stop();
             Plugin.Instance?.UpdateAverageSearchTime(stopwatch.ElapsedMilliseconds);
             context.HttpContext.Response.Headers.Add(new KeyValuePair<string, StringValues>(
-                "x-meilisearch-result", $"{stopwatch.ElapsedMilliseconds}ms, {count} items"));
+                "x-meilisearch-result",
+                $"{stopwatch.ElapsedMilliseconds}ms, {result.Count} items, bypass={result.ShouldBypass}"));
+
+            if (result.ShouldBypass)
+            {
+                context.Result = GetEmptyResult();
+                return;
+            }
         }
 
         await next();
@@ -85,6 +96,7 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         return results.Hits;
     }
 
+
     /// <summary>
     ///     Mutates the current search request context by overriding the ids with the results of the Meilisearch query.
     ///     This part code is somewhat copied or adapted from Jellysearch.
@@ -95,10 +107,10 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
     ///     If the search term is empty, or if there are no results, the method does nothing.
     /// </remarks>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task<int> Mutate(ActionExecutingContext context, string searchTerm)
+    private async Task<MutateResult> Mutate(ActionExecutingContext context, string searchTerm)
     {
         if (ch.Index == null)
-            return 0;
+            return new MutateResult(false, 0);
 
         var includeItemTypes = (BaseItemKind[]?)context.ActionArguments["includeItemTypes"] ?? [];
 
@@ -163,6 +175,20 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
             logger.LogDebug("Not mutate request: results={hits}, fallback={fallback}", items.Count, !notFallback);
         }
 
-        return items.Count;
+        return new MutateResult(notFallback, items.Count);
+    }
+
+    private record MutateResult(bool ShouldBypass, int Count);
+
+    private static IActionResult GetEmptyResult()
+    {
+        var emptyResult = new QueryResult<BaseItemDto>
+        {
+            Items = new List<BaseItemDto>(),
+            TotalRecordCount = 0,
+            StartIndex = 0
+        };
+
+        return new OkObjectResult(emptyResult);
     }
 }
