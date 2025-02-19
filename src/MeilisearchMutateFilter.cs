@@ -59,7 +59,7 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
                 "x-meilisearch-result",
                 $"{stopwatch.ElapsedMilliseconds}ms, {result.Count} items, bypass={result.ShouldBypass}"));
 
-            if (result.ShouldBypass)
+            if (result is { ShouldBypass: true, Count: 0 })
             {
                 context.Result = GetEmptyResult();
                 return;
