@@ -5,7 +5,6 @@ using Jellyfin.Data.Enums;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Querying;
 using Meilisearch;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
@@ -61,7 +60,7 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
 
             if (result is { ShouldBypass: true, Count: 0 })
             {
-                context.Result = GetEmptyResult();
+                context.Result = EmptyResult;
                 return;
             }
         }
@@ -112,8 +111,9 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         if (ch.Index == null)
             return new MutateResult(false, 0);
 
-        var includeItemTypes = (BaseItemKind[]?)context.ActionArguments["includeItemTypes"] ?? [];
-
+        if (!context.ActionArguments.TryGetValue("includeItemTypes", out var includeItemTypesObj))
+            includeItemTypesObj = null;
+        var includeItemTypes = (BaseItemKind[]?)includeItemTypesObj ?? [];
         var filteredTypes = new List<string>();
         var additionalFilters = new List<KeyValuePair<string, string>>();
         if (!includeItemTypes.IsNullOrEmpty())
@@ -147,7 +147,9 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         }
 
         // Override the limit if it is less than 20 from request
-        var limit = (int?)context.ActionArguments["limit"] ?? 20;
+        if (context.ActionArguments.TryGetValue("limit", out var limitObj))
+            limitObj = null;
+        var limit = (int?)limitObj ?? 20;
         var filter = filteredTypes
             .Select(it => new KeyValuePair<string, string>("type", it))
             .Concat(additionalFilters);
