@@ -180,15 +180,10 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
 
     private record MutateResult(bool ShouldBypass, int Count);
 
-    private static IActionResult GetEmptyResult()
+    private static readonly OkObjectResult EmptyResult = new(new QueryResult<BaseItemDto>
     {
-        var emptyResult = new QueryResult<BaseItemDto>
-        {
-            Items = new List<BaseItemDto>(),
-            TotalRecordCount = 0,
-            StartIndex = 0
-        };
-
-        return new OkObjectResult(emptyResult);
-    }
+        Items = new List<BaseItemDto>(),
+        TotalRecordCount = 0,
+        StartIndex = 0
+    });
 }
