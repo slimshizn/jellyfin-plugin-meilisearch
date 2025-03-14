@@ -72,7 +72,7 @@ public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger, IS
         );
 
         await index.UpdateSearchableAttributesAsync(Config.DefaultAttributesToSearchOn);
-        await index.UpdateDisplayedAttributesAsync(Config.DefaultAttributesToSearchOn.Concat(["guid"]));
+        await index.UpdateDisplayedAttributesAsync(Config.DefaultAttributesToSearchOn.Concat(["guid", "type"]));
 
         // Set ranking rules to add critic rating
         await index.UpdateRankingRulesAsync(
