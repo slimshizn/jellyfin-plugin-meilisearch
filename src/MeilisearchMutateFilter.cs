@@ -80,19 +80,26 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
     }
 
     private static async Task<IReadOnlyCollection<MeilisearchItem>> Search(Index index, string searchTerm,
-        IEnumerable<KeyValuePair<string, string>> filters, int limit = 20)
+        IEnumerable<KeyValuePair<string, string>> filters, List<KeyValuePair<string, string>> additionalFilters,
+        int limit = 20)
     {
-        var filterQuery = filters.Select(it => $"{it.Key} = {it.Value}");
-        var results = await index.SearchAsync<MeilisearchItem>(
-            searchTerm,
-            new SearchQuery
-            {
-                Filter = string.Join(" AND ", filterQuery),
-                Limit = limit,
-                AttributesToSearchOn = Plugin.Instance?.Configuration.AttributesToSearchOn
-            }
-        );
-        return results.Hits;
+        List<MeilisearchItem> items = [];
+        var additionQuery = additionalFilters.Select(it => $"{it.Key} = {it.Value}").ToList();
+        foreach (var query in filters.Select(it => (List<string>) [$"{it.Key} = {it.Value}"]))
+        {
+            var results = await index.SearchAsync<MeilisearchItem>(
+                searchTerm,
+                new SearchQuery
+                {
+                    Filter = string.Join(" AND ", query.Concat(additionQuery)),
+                    Limit = limit,
+                    AttributesToSearchOn = Plugin.Instance?.Configuration.AttributesToSearchOn
+                }
+            );
+            items.AddRange(results.Hits);
+        }
+
+        return items;
     }
 
 
@@ -151,9 +158,8 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
             limitObj = null;
         var limit = (int?)limitObj ?? 20;
         var filter = filteredTypes
-            .Select(it => new KeyValuePair<string, string>("type", it))
-            .Concat(additionalFilters);
-        var items = await Search(ch.Index, searchTerm, filter, limit);
+            .Select(it => new KeyValuePair<string, string>("type", it));
+        var items = await Search(ch.Index, searchTerm, filter, additionalFilters, limit);
 
         var notFallback = !(Plugin.Instance?.Configuration.FallbackToJellyfin ?? false);
         if (items.Count > 0 || notFallback)
