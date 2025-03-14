@@ -44,7 +44,7 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
             TryCreateMeilisearchClient().Wait();
         };
 
-        hostApplicationLifetime.ApplicationStarted.Register(() => { _ = TryCreateMeilisearchClient(); });
+        hostApplicationLifetime.ApplicationStarted.Register(() => { _ = TryCreateMeilisearchClient(false); });
         hostApplicationLifetime.ApplicationStarted.Register(() => { TryAddFilter(provider, serviceProvider); });
     }
 
@@ -93,14 +93,37 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
         SaveConfiguration(Configuration);
         ConfigurationChanged?.Invoke(this, configuration);
         if (!skipReload)
-            ReloadMeilisearch?.Invoke(this, configuration);
+            ReloadMeilisearch.Invoke(this, configuration);
     }
 
-    public async Task TryCreateMeilisearchClient()
+    private volatile Task? _updatingTask;
+
+    public async Task TryCreateMeilisearchClient(bool join = true)
+    {
+        if (_updatingTask != null)
+        {
+            _logger.LogWarning("Meilisearch client configuration is still updating，skipping");
+            if (join) await _updatingTask;
+            return;
+        }
+
+        try
+        {
+            _updatingTask = _TryCreateMeilisearchClient();
+            await _updatingTask;
+        }
+        finally
+        {
+            _updatingTask = null;
+        }
+    }
+
+    private async Task _TryCreateMeilisearchClient()
     {
         await _clientHolder.Set(Configuration);
         await Indexer.Index();
     }
+
 
     public void UpdateAverageSearchTime(long averageSearchTime)
     {

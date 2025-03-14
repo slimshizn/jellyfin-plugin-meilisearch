@@ -79,24 +79,32 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         return searchTerm is not { Length: > 0 } ? null : searchTerm;
     }
 
-    private static async Task<IReadOnlyCollection<MeilisearchItem>> Search(Index index, string searchTerm,
+    private async Task<IReadOnlyCollection<MeilisearchItem>> Search(Index index, string searchTerm,
         IEnumerable<KeyValuePair<string, string>> filters, List<KeyValuePair<string, string>> additionalFilters,
         int limit = 20)
     {
         List<MeilisearchItem> items = [];
-        var additionQuery = additionalFilters.Select(it => $"{it.Key} = {it.Value}").ToList();
-        foreach (var query in filters.Select(it => (List<string>) [$"{it.Key} = {it.Value}"]))
+        try
         {
-            var results = await index.SearchAsync<MeilisearchItem>(
-                searchTerm,
-                new SearchQuery
-                {
-                    Filter = string.Join(" AND ", query.Concat(additionQuery)),
-                    Limit = limit,
-                    AttributesToSearchOn = Plugin.Instance?.Configuration.AttributesToSearchOn
-                }
-            );
-            items.AddRange(results.Hits);
+            var additionQuery = additionalFilters.Select(it => $"{it.Key} = {it.Value}").ToList();
+            foreach (var query in filters.Select(it => (List<string>) [$"{it.Key} = {it.Value}"]))
+            {
+                var results = await index.SearchAsync<MeilisearchItem>(
+                    searchTerm,
+                    new SearchQuery
+                    {
+                        Filter = string.Join(" AND ", query.Concat(additionQuery)),
+                        Limit = limit,
+                        AttributesToSearchOn = Plugin.Instance?.Configuration.AttributesToSearchOn
+                    }
+                );
+                items.AddRange(results.Hits);
+            }
+        }
+        catch (MeilisearchCommunicationError e)
+        {
+            logger.LogError(e, "Meilisearch communication error");
+            ch.Unset();
         }
 
         return items;
@@ -115,8 +123,13 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task<MutateResult> Mutate(ActionExecutingContext context, string searchTerm)
     {
-        if (ch.Index == null)
+        if (!ch.Ok || ch.Index == null)
+        {
+            logger.LogWarning(
+                "Meilisearch is not configured or unable to connect, skipping search mutation, will fallback to Jellyfin");
+            Plugin.Instance?.TryCreateMeilisearchClient(false);
             return new MutateResult(false, 0);
+        }
 
         if (!context.ActionArguments.TryGetValue("includeItemTypes", out var includeItemTypesObj))
             includeItemTypesObj = null;

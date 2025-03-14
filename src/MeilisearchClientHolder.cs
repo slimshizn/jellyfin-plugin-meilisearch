@@ -18,6 +18,12 @@ public class MeilisearchClientHolder(ILogger<MeilisearchClientHolder> logger, IS
         return !Ok ? null : func(Client!, Index!);
     }
 
+    public void Unset()
+    {
+        Client = null;
+        Index = null;
+    }
+
     public async Task Set(Config configuration)
     {
         if (configuration.Url.IsNullOrEmpty())
