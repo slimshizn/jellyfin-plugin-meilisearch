@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using Jellyfin.Data.Enums;
@@ -16,7 +17,11 @@ using Index = Meilisearch.Index;
 namespace Jellyfin.Plugin.Meilisearch;
 
 // ReSharper disable once ClassNeverInstantiated.Global
-public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<MeilisearchMutateFilter> logger, ILibraryManager libraryManager, IUserManager userManager)
+public class MeilisearchMutateFilter(
+    MeilisearchClientHolder ch,
+    ILogger<MeilisearchMutateFilter> logger,
+    ILibraryManager libraryManager,
+    IUserManager userManager)
     : IAsyncActionFilter
 {
     private static readonly Dictionary<string, string> JellyfinTypeMap = new()
@@ -209,13 +214,13 @@ public class MeilisearchMutateFilter(MeilisearchClientHolder ch, ILogger<Meilise
         }
 
         // remove items that are not visible to the user
-        if (user != null)
+        if (user != null && Plugin.Instance?.Configuration.DisablePermissionChecks != true)
         {
-            items = [.. items.Where(x => 
+            items = items.Where(x =>
             {
                 var item = libraryManager.GetItemById(Guid.Parse(x.Guid));
                 return item?.IsVisibleStandalone(user) ?? false;
-            })];
+            }).ToImmutableList();
         }
 
         return new MutateResult(notFallback, items.Count);

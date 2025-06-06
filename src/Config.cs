@@ -18,6 +18,7 @@ public class Config : BasePluginConfiguration
         IndexName = string.Empty;
         AttributesToSearchOn = DefaultAttributesToSearchOn;
         FallbackToJellyfin = false;
+        DisablePermissionChecks = false;
     }
 
     public string ApiKey { get; set; }
@@ -27,4 +28,5 @@ public class Config : BasePluginConfiguration
     public string IndexName { get; set; }
     public string[] AttributesToSearchOn { get; set; }
     public bool FallbackToJellyfin { get; set; }
+    public bool DisablePermissionChecks { get; set; }
 }
