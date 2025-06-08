@@ -191,6 +191,16 @@ public class MeilisearchMutateFilter(
             .Select(it => new KeyValuePair<string, string>("type", it)).ToList();
         var items = await Search(ch.Index, searchTerm, filter, additionalFilters, limit);
 
+        // remove items that are not visible to the user
+        if (user != null && Plugin.Instance?.Configuration.DisablePermissionChecks != true)
+        {
+            items = items.Where(x =>
+            {
+                var item = libraryManager.GetItemById(Guid.Parse(x.Guid));
+                return item?.IsVisibleStandalone(user) ?? false;
+            }).ToImmutableList();
+        }
+
         var notFallback = !(Plugin.Instance?.Configuration.FallbackToJellyfin ?? false);
         if (items.Count > 0 || notFallback)
         {
@@ -211,16 +221,6 @@ public class MeilisearchMutateFilter(
         else
         {
             logger.LogDebug("Not mutate request: results={hits}, fallback={fallback}", items.Count, !notFallback);
-        }
-
-        // remove items that are not visible to the user
-        if (user != null && Plugin.Instance?.Configuration.DisablePermissionChecks != true)
-        {
-            items = items.Where(x =>
-            {
-                var item = libraryManager.GetItemById(Guid.Parse(x.Guid));
-                return item?.IsVisibleStandalone(user) ?? false;
-            }).ToImmutableList();
         }
 
         return new MutateResult(notFallback, items.Count);
