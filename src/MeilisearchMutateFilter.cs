@@ -216,6 +216,10 @@ public class MeilisearchMutateFilter(
         if (!context.ActionArguments.TryGetValue("userId", out var userIdObj))
             userIdObj = null;
 
+        // Use the Authorization header if there is no userId
+        // The userId query parameter is more important
+        userIdObj ??= context.HttpContext.User.Claims.FirstOrDefault(claim => claim.Type.Equals("Jellyfin-UserId", StringComparison.OrdinalIgnoreCase))?.Value;
+
         var user = userIdObj switch
         {
             string strUserId => userManager.GetUserById(Guid.Parse(strUserId)),
