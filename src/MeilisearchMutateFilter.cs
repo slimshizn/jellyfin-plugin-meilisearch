@@ -57,7 +57,7 @@ public class MeilisearchMutateFilter(
         { "Photo", typeof(Photo).FullName! },
         { "PhotoAlbum", typeof(PhotoAlbum).FullName! },
         { "Playlist", typeof(Playlist).FullName! },
-        { "PlaylistsFolder", "MediaBrowser.Controller.Entities.PlaylistsFolder" },
+        { "PlaylistsFolder", "Emby.Server.Implementations.Playlists.PlaylistsFolder" },
         { "Season", typeof(Season).FullName! },
         { "Series", typeof(Series).FullName! },
         { "Studio", typeof(Studio).FullName! },
