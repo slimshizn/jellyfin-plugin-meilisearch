@@ -1,9 +1,12 @@
-﻿using System.Collections.Immutable;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Globalization;
-using Jellyfin.Data.Enums;
+﻿using Jellyfin.Data.Enums;
+using MediaBrowser.Controller.Channels;
+using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
+using MediaBrowser.Controller.Entities.Movies;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.LiveTv;
+using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Querying;
 using Meilisearch;
@@ -12,6 +15,11 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
+using System.Collections.Frozen;
+using System.Collections.Immutable;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
 using Index = Meilisearch.Index;
 
 namespace Jellyfin.Plugin.Meilisearch;
@@ -24,25 +32,43 @@ public class MeilisearchMutateFilter(
     IUserManager userManager)
     : IAsyncActionFilter
 {
-    private static readonly Dictionary<string, string> JellyfinTypeMap = new()
+    // Build the Jellyfin type map dynamically
+    private IReadOnlyDictionary<string, string> JellyfinTypeMap { get; } = new Dictionary<string, string>()
     {
-        { "Movie", "MediaBrowser.Controller.Entities.Movies.Movie" },
-        { "Episode", "MediaBrowser.Controller.Entities.TV.Episode" },
-        { "Series", "MediaBrowser.Controller.Entities.TV.Series" },
-        { "Playlist", "MediaBrowser.Controller.Playlists.Playlist" },
-        { "MusicAlbum", "MediaBrowser.Controller.Entities.Audio.MusicAlbum" },
-        { "MusicArtist", "MediaBrowser.Controller.Entities.Audio.MusicArtist" },
-        { "Audio", "MediaBrowser.Controller.Entities.Audio.Audio" },
-        { "Video", "MediaBrowser.Controller.Entities.Video" },
-        { "TvChannel", "MediaBrowser.Controller.LiveTv.LiveTvChannel" },
-        { "LiveTvProgram", "MediaBrowser.Controller.LiveTv.LiveTvProgram" },
-        { "PhotoAlbum", "MediaBrowser.Controller.Entities.PhotoAlbum" },
-        { "Photo", "MediaBrowser.Controller.Entities.Photo" },
-        { "Person", "MediaBrowser.Controller.Entities.Person" },
-        { "Book", "MediaBrowser.Controller.Entities.Book" },
-        { "AudioBook", "MediaBrowser.Controller.Entities.AudioBook" },
-        { "BoxSet", "MediaBrowser.Controller.Entities.Movies.BoxSet" }
-    };
+        { "AggregateFolder", typeof(AggregateFolder).FullName! },
+        { "Audio", typeof(Audio).FullName! },
+        { "AudioBook", typeof(AudioBook).FullName! },
+        { "BasePluginFolder", typeof(BasePluginFolder).FullName! },
+        { "Book", typeof(Book).FullName! },
+        { "BoxSet", typeof(BoxSet).FullName! },
+        { "Channel", typeof(Channel).FullName! },
+        { "CollectionFolder", typeof(CollectionFolder).FullName! },
+        { "Episode", typeof(Episode).FullName! },
+        { "Folder", typeof(Folder).FullName! },
+        { "Genre", typeof(Genre).FullName! },
+        { "Movie", typeof(Movie).FullName! },
+        { "LiveTvChannel", typeof(LiveTvChannel).FullName! },
+        { "LiveTvProgram", typeof(LiveTvProgram).FullName! },
+        { "MusicAlbum", typeof(MusicAlbum).FullName! },
+        { "MusicArtist", typeof(MusicArtist).FullName! },
+        { "MusicGenre", typeof(MusicGenre).FullName! },
+        { "MusicVideo", typeof(MusicVideo).FullName! },
+        { "Person", typeof(Person).FullName! },
+        { "Photo", typeof(Photo).FullName! },
+        { "PhotoAlbum", typeof(PhotoAlbum).FullName! },
+        { "Playlist", typeof(Playlist).FullName! },
+        { "PlaylistsFolder", "MediaBrowser.Controller.Entities.PlaylistsFolder" },
+        { "Season", typeof(Season).FullName! },
+        { "Series", typeof(Series).FullName! },
+        { "Studio", typeof(Studio).FullName! },
+        { "Trailer", typeof(Trailer).FullName! },
+        { "TvChannel", typeof(LiveTvChannel).FullName! },
+        { "TvProgram", typeof(LiveTvProgram).FullName! },
+        { "UserRootFolder", typeof(UserRootFolder).FullName! },
+        { "UserView", typeof(UserView).FullName! },
+        { "Video", typeof(Video).FullName! },
+        { "Year", typeof(Year).FullName! }
+    }.ToFrozenDictionary();
 
     private static readonly Collection<string> MatchingPaths = ["/Items"];
     // ["/Users/{userId}/Items", "/Persons", "/Artists/AlbumArtists", "/Artists", "/Genres"];
@@ -194,21 +220,21 @@ public class MeilisearchMutateFilter(
             // Handle direct endpoints and their types
             if (path.EndsWith("/Persons", true, CultureInfo.InvariantCulture))
             {
-                filteredTypes.Add("MediaBrowser.Controller.Entities.Person");
+                filteredTypes.Add(JellyfinTypeMap["Person"]);
             }
             else if (path.EndsWith("/Artists", true, CultureInfo.InvariantCulture))
             {
-                filteredTypes.Add("MediaBrowser.Controller.Entities.Audio.MusicArtist");
+                filteredTypes.Add(JellyfinTypeMap["MusicArtist"]);
             }
             else if (path.EndsWith("/AlbumArtists", true, CultureInfo.InvariantCulture))
             {
                 // Album artists are marked as folder
-                filteredTypes.Add("MediaBrowser.Controller.Entities.Audio.MusicArtist");
+                filteredTypes.Add(JellyfinTypeMap["MusicArtist"]);
                 additionalFilters.Add(new KeyValuePair<string, string>("isFolder", "true"));
             }
             else if (path.EndsWith("/Genres", true, CultureInfo.InvariantCulture))
             {
-                filteredTypes.Add("MediaBrowser.Controller.Entities.Genre"); // TODO: Handle genre search properly
+                filteredTypes.Add(JellyfinTypeMap["Genre"]); // TODO: Handle genre search properly
             }
         }
 
