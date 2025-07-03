@@ -1,4 +1,6 @@
-﻿using Meilisearch;
+﻿using System.Collections.Immutable;
+using MediaBrowser.Common.Configuration;
+using Meilisearch;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Index = Meilisearch.Index;
@@ -8,41 +10,15 @@ namespace Jellyfin.Plugin.Meilisearch;
 /**
  * Following code is somewhat copy-pasted or adapted from Jellysearch.
  */
-public class DbIndexer(MeilisearchClientHolder clientHolder, ILogger<DbIndexer> logger) : Indexer(clientHolder, logger)
+public class DbIndexer(
+    IApplicationPaths applicationPaths,
+    MeilisearchClientHolder clientHolder,
+    ILogger<DbIndexer> logger) : Indexer(clientHolder, logger)
 {
-    // private readonly string[] _bitField = ["IsFolder"];
-    //
-    // private readonly string[] _floatField = ["CommunityRating", "CriticRating"];
-    //
-    // private readonly string[] _guidField = ["guid"];
-    // private readonly string[] _intField = ["ProductionYear"];
-    //
-    // private readonly string[] _textArrayField =
-    // [
-    //     "Genres",
-    //     "Studios",
-    //     "Tags",
-    //     "Artists",
-    //     "AlbumArtists"
-    // ];
-    //
-    // private readonly string[] _textField =
-    // [
-    //     "type",
-    //     "ParentId",
-    //     "Name",
-    //     "Overview",
-    //     "OriginalTitle",
-    //     "SeriesName",
-    // ];
-
-    public override DateTimeOffset? LastIndex { get; protected set; }
-    public override long LastIndexCount { get; protected set; }
-
-
-    protected override async Task IndexInternal(MeilisearchClient meilisearch, Index index)
+    protected override async Task<ImmutableList<MeilisearchItem>> GetItems()
     {
-        var dbPath = Plugin.Instance?.DbPath;
+        var dbPath = Path.Combine(applicationPaths.DataPath, "library.db");
+        Status["Database"] = dbPath;
         logger.LogInformation("Indexing items from database: {DB}", dbPath);
 
         // Open Jellyfin library
@@ -56,7 +32,16 @@ public class DbIndexer(MeilisearchClientHolder clientHolder, ILogger<DbIndexer> 
         // Query all base items
         await using var command = connection.CreateCommand();
         command.CommandText =
-            "SELECT guid, type, ParentId, CommunityRating, Name, Overview, ProductionYear, Genres, Studios, Tags, IsFolder, CriticRating, OriginalTitle, SeriesName, Artists, AlbumArtists, Path FROM TypedBaseItems";
+            """
+            SELECT
+                guid, type, ParentId, CommunityRating, 
+                Name, Overview, ProductionYear, Genres, 
+                Studios, Tags, IsFolder, CriticRating, 
+                OriginalTitle, SeriesName, Artists, 
+                AlbumArtists, Path 
+            FROM 
+                TypedBaseItems
+            """;
 
         await using var reader = await command.ExecuteReaderAsync();
         var items = new List<MeilisearchItem>();
@@ -85,15 +70,6 @@ public class DbIndexer(MeilisearchClientHolder clientHolder, ILogger<DbIndexer> 
             items.Add(item);
         }
 
-        if (items.Count <= 0)
-        {
-            logger.LogInformation("No items to index");
-            return;
-        }
-
-        await index.AddDocumentsInBatchesAsync(items, 5000, "guid");
-        logger.LogInformation("Upload {COUNT} items to Meilisearch", items.Count);
-        LastIndex = DateTimeOffset.Now;
-        LastIndexCount = items.Count;
+        return items.ToImmutableList();
     }
 }

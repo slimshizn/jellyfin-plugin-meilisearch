@@ -14,15 +14,13 @@ public class Controller(MeilisearchClientHolder clientHolder) : ControllerBase
     {
         return new JsonResult(new
         {
-            db = Plugin.Instance?.DbPath,
             meilisearch = clientHolder.Status,
             meilisearchOk = clientHolder.Ok,
-            lastIndex = Plugin.Instance!.Indexer.LastIndex?.ToString() ?? "Not yet indexed",
-            lastIndexed = Plugin.Instance.Indexer.LastIndexCount,
-            averageSearchTime = $"{Plugin.Instance.AverageSearchTime}ms"
+            averageSearchTime = $"{Plugin.Instance!.AverageSearchTime}ms",
+            indexStatus = Plugin.Instance.Indexer.Status
         });
     }
-    
+
     [HttpGet("reconnect")]
     public async Task<ActionResult> Reconnect()
     {

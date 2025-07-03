@@ -33,9 +33,6 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
         _logger = logger;
         _clientHolder = clientHolder;
         Indexer = indexer;
-
-        DbPath = Path.Combine(applicationPaths.DataPath, "library.db");
-        logger.LogInformation("db_path={DB}", DbPath);
         Instance = this;
 
         ReloadMeilisearch += (_, _) =>
@@ -49,8 +46,6 @@ public class Plugin : BasePlugin<Config>, IHasWebPages
     }
 
     private EventHandler<BasePluginConfiguration> ReloadMeilisearch { get; }
-
-    public string DbPath { get; }
 
     public override string Name => "Meilisearch";
     public override Guid Id => Guid.Parse("974395db-b31d-46a2-bc86-ef9aa5ac04dd");

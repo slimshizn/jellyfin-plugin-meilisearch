@@ -321,6 +321,5 @@ public class MeilisearchMutateFilter(
         var types = values.SelectMany(it =>
             it?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? []);
         return types.ToImmutableList();
-
     }
 }
