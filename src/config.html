@@ -192,7 +192,7 @@
                 reconnectBtn.className = clsNameDisabled;
                 statusEl.innerText = 'loading status...';
                 ApiClient.get('/meilisearch/' + endpoint).then(r => r.json()).then(status => {
-                    statusEl.innerText = Object.keys(status).map(k => k + ': ' + status[k]).join('\n');
+                    statusEl.innerText = JSON.stringify(status, null, 2);
                     if (status.meilisearchOk) {
                         reconnectBtn.style.display = 'none';
                     } else {
