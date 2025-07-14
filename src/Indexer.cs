@@ -1,4 +1,6 @@
-﻿using Meilisearch;
+﻿using System.Collections.Immutable;
+using System.Globalization;
+using Meilisearch;
 using Microsoft.Extensions.Logging;
 using Index = Meilisearch.Index;
 
@@ -6,8 +8,7 @@ namespace Jellyfin.Plugin.Meilisearch;
 
 public abstract class Indexer(MeilisearchClientHolder clientHolder, ILogger<Indexer> logger)
 {
-    public abstract DateTimeOffset? LastIndex { get; protected set; }
-    public abstract long LastIndexCount { get; protected set; }
+    public Dictionary<string, string> Status { get; } = new();
 
     public async Task Index()
     {
@@ -21,5 +22,23 @@ public abstract class Indexer(MeilisearchClientHolder clientHolder, ILogger<Inde
         await task;
     }
 
-    protected abstract Task IndexInternal(MeilisearchClient meilisearchClient, Index index);
+    private async Task IndexInternal(MeilisearchClient meilisearchClient, Index index)
+    {
+        var items = await GetItems();
+        if (items.Count <= 0)
+        {
+            logger.LogInformation("No items to index");
+            return;
+        }
+
+        await index.AddDocumentsInBatchesAsync(items, batchSize: 5000, primaryKey: "guid");
+        logger.LogInformation("Upload {COUNT} items to Meilisearch", items.Count);
+        Status["Items"] = items.Count.ToString();
+        Status["LastIndexed"] = DateTime.Now.ToString(CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>
+    /// Get the items to index
+    /// </summary>
+    protected abstract Task<ImmutableList<MeilisearchItem>> GetItems();
 }
